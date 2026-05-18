@@ -1,424 +1,589 @@
-# =========================
-# SISTEMA DE RPG
-# =========================
+import tkinter as tk
+from tkinter import ttk, messagebox
+import sqlite3
 
-personagens = []
-npcs = []
-campanhas = []
+# ==========================================
+# BANCO DE DADOS
+# ==========================================
 
-classes_disponiveis = [
-    "Mago",
-    "Guerreiro",
-    "Ladino",
-    "Arqueiro",
-    "Clérigo"
-]
+conexao = sqlite3.connect("rpg_system.db")
+cursor = conexao.cursor()
 
-# =========================
-# FUNÇÕES AUXILIARES
-# =========================
-
-def pausar():
-    input("\nPressione ENTER para continuar...")
-
-
-# =========================
 # PERSONAGENS
-# =========================
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS personagens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT,
+    classe TEXT
+)
+""")
+
+# NPCS
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS npcs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT,
+    funcao TEXT
+)
+""")
+
+# CAMPANHAS
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS campanhas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT,
+    historia TEXT
+)
+""")
+
+# SESSÕES
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS sessoes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    campanha_id INTEGER,
+    descricao TEXT
+)
+""")
+
+conexao.commit()
+
+# ==========================================
+# JANELA
+# ==========================================
+
+janela = tk.Tk()
+janela.title("RPG SYSTEM")
+janela.geometry("1200x700")
+janela.config(bg="#0f172a")
+
+# ==========================================
+# CORES
+# ==========================================
+
+FUNDO = "#0f172a"
+MENU = "#111827"
+ROXO = "#6d28d9"
+ROXO_CLARO = "#c084fc"
+VERMELHO = "#dc2626"
+TEXTO = "white"
+
+# ==========================================
+# FRAME PRINCIPAL
+# ==========================================
+
+frame_principal = tk.Frame(janela, bg=FUNDO)
+frame_principal.pack(fill="both", expand=True)
+
+# MENU
+menu_lateral = tk.Frame(frame_principal, bg=MENU, width=250)
+menu_lateral.pack(side="left", fill="y")
+
+# ÁREA
+area = tk.Frame(frame_principal, bg=FUNDO)
+area.pack(side="right", fill="both", expand=True)
+
+# ==========================================
+# FUNÇÕES AUXILIARES
+# ==========================================
+
+def limpar_area():
+    for widget in area.winfo_children():
+        widget.destroy()
+
+def titulo(texto):
+    tk.Label(
+        area,
+        text=texto,
+        font=("Arial", 24, "bold"),
+        bg=FUNDO,
+        fg=ROXO_CLARO
+    ).pack(pady=20)
+
+# ==========================================
+# PERSONAGENS
+# ==========================================
+
+def tela_personagens():
+
+    limpar_area()
+    titulo("PERSONAGENS")
+
+    tabela = ttk.Treeview(
+        area,
+        columns=("ID", "Nome", "Classe"),
+        show="headings",
+        height=20
+    )
+
+    tabela.heading("ID", text="ID")
+    tabela.heading("Nome", text="Nome")
+    tabela.heading("Classe", text="Classe")
+
+    tabela.pack(pady=20)
+
+    cursor.execute("SELECT * FROM personagens")
+
+    for personagem in cursor.fetchall():
+        tabela.insert("", tk.END, values=personagem)
 
 def criar_personagem():
 
-    print("\n=== CRIAÇÃO DE PERSONAGEM ===")
+    limpar_area()
+    titulo("CRIAR PERSONAGEM")
 
-    nome = input("Digite o nome do personagem: ")
+    frame = tk.Frame(area, bg=FUNDO)
+    frame.pack(pady=20)
 
-    print("\nClasses disponíveis:")
+    tk.Label(frame, text="Nome", bg=FUNDO, fg=TEXTO).grid(row=0, column=0, pady=10)
 
-    for i, classe in enumerate(classes_disponiveis, start=1):
-        print(f"{i} - {classe}")
+    entry_nome = tk.Entry(frame, width=30)
+    entry_nome.grid(row=0, column=1)
 
-    escolha = int(input("\nEscolha a classe: "))
+    tk.Label(frame, text="Classe", bg=FUNDO, fg=TEXTO).grid(row=1, column=0, pady=10)
 
-    classe_escolhida = classes_disponiveis[escolha - 1]
+    combo = ttk.Combobox(
+        frame,
+        values=[
+            "Mago",
+            "Guerreiro",
+            "Ladino",
+            "Arqueiro",
+            "Clérigo"
+        ],
+        width=27
+    )
 
-    personagem = {
-        "nome": nome,
-        "classe": classe_escolhida,
-        "inventario": []
-    }
+    combo.grid(row=1, column=1)
+    combo.current(0)
 
-    personagens.append(personagem)
+    def salvar():
 
-    print(f"\nPersonagem {nome} criado com sucesso!")
-    pausar()
+        nome = entry_nome.get()
+        classe = combo.get()
 
+        if nome == "":
+            messagebox.showwarning("Erro", "Digite um nome!")
+            return
 
-def ver_personagens():
+        cursor.execute("""
+        INSERT INTO personagens(nome, classe)
+        VALUES (?, ?)
+        """, (nome, classe))
 
-    print("\n=== PERSONAGENS ===")
+        conexao.commit()
 
-    if not personagens:
-        print("Nenhum personagem criado.")
-        pausar()
-        return
+        messagebox.showinfo("Sucesso", "Personagem criado!")
 
-    for i, p in enumerate(personagens, start=1):
+        tela_personagens()
 
-        print(f"\n{i} - {p['nome']}")
-        print(f"Classe: {p['classe']}")
-
-        if p["inventario"]:
-            print("Inventário:")
-            for item in p["inventario"]:
-                print(f"- {item}")
-        else:
-            print("Inventário vazio.")
-
-    pausar()
-
+    tk.Button(
+        area,
+        text="CRIAR PERSONAGEM",
+        command=salvar,
+        bg=ROXO,
+        fg="white",
+        font=("Arial", 12, "bold"),
+        width=25,
+        height=2,
+        bd=0
+    ).pack(pady=20)
 
 def alterar_personagem():
 
-    print("\n=== ALTERAR PERSONAGEM ===")
+    limpar_area()
+    titulo("ALTERAR PERSONAGEM")
 
-    if not personagens:
-        print("Nenhum personagem criado.")
-        pausar()
-        return
+    frame = tk.Frame(area, bg=FUNDO)
+    frame.pack(pady=20)
 
-    for i, p in enumerate(personagens, start=1):
-        print(f"{i} - {p['nome']}")
+    tk.Label(frame, text="ID", bg=FUNDO, fg=TEXTO).grid(row=0, column=0, pady=10)
 
-    escolha = int(input("\nEscolha o personagem: "))
+    entry_id = tk.Entry(frame)
+    entry_id.grid(row=0, column=1)
 
-    personagem = personagens[escolha - 1]
+    tk.Label(frame, text="Novo Nome", bg=FUNDO, fg=TEXTO).grid(row=1, column=0, pady=10)
 
-    novo_nome = input("Novo nome: ")
+    entry_nome = tk.Entry(frame)
+    entry_nome.grid(row=1, column=1)
 
-    print("\nClasses disponíveis:")
+    tk.Label(frame, text="Nova Classe", bg=FUNDO, fg=TEXTO).grid(row=2, column=0, pady=10)
 
-    for i, classe in enumerate(classes_disponiveis, start=1):
-        print(f"{i} - {classe}")
+    combo = ttk.Combobox(
+        frame,
+        values=["Mago", "Guerreiro", "Ladino", "Arqueiro", "Clérigo"]
+    )
 
-    nova_classe = int(input("\nEscolha a nova classe: "))
+    combo.grid(row=2, column=1)
+    combo.current(0)
 
-    personagem["nome"] = novo_nome
-    personagem["classe"] = classes_disponiveis[nova_classe - 1]
+    def alterar():
 
-    print("\nPersonagem atualizado com sucesso!")
-    pausar()
+        cursor.execute("""
+        UPDATE personagens
+        SET nome = ?, classe = ?
+        WHERE id = ?
+        """, (
+            entry_nome.get(),
+            combo.get(),
+            entry_id.get()
+        ))
 
+        conexao.commit()
 
-def adicionar_item():
+        messagebox.showinfo("Sucesso", "Personagem alterado!")
 
-    print("\n=== ADICIONAR ITEM ===")
+        tela_personagens()
 
-    if not personagens:
-        print("Nenhum personagem criado.")
-        pausar()
-        return
+    tk.Button(
+        area,
+        text="ALTERAR",
+        command=alterar,
+        bg=ROXO,
+        fg="white",
+        width=20,
+        height=2,
+        bd=0
+    ).pack(pady=20)
 
-    for i, p in enumerate(personagens, start=1):
-        print(f"{i} - {p['nome']}")
+def excluir_personagem():
 
-    escolha = int(input("\nEscolha o personagem: "))
+    limpar_area()
+    titulo("EXCLUIR PERSONAGEM")
 
-    item = input("Nome do item: ")
+    frame = tk.Frame(area, bg=FUNDO)
+    frame.pack(pady=20)
 
-    personagens[escolha - 1]["inventario"].append(item)
+    tk.Label(frame, text="ID", bg=FUNDO, fg=TEXTO).pack(pady=10)
 
-    print("Item adicionado com sucesso!")
-    pausar()
+    entry = tk.Entry(frame)
+    entry.pack(pady=10)
 
+    def excluir():
 
-# =========================
-# NPCs
-# =========================
+        cursor.execute(
+            "DELETE FROM personagens WHERE id = ?",
+            (entry.get(),)
+        )
+
+        conexao.commit()
+
+        messagebox.showinfo("Sucesso", "Personagem excluído!")
+
+        tela_personagens()
+
+    tk.Button(
+        frame,
+        text="EXCLUIR",
+        command=excluir,
+        bg=VERMELHO,
+        fg="white",
+        width=20,
+        height=2,
+        bd=0
+    ).pack(pady=20)
+
+# ==========================================
+# NPCS
+# ==========================================
+
+def tela_npcs():
+
+    limpar_area()
+    titulo("NPCS")
+
+    tabela = ttk.Treeview(
+        area,
+        columns=("ID", "Nome", "Função"),
+        show="headings",
+        height=20
+    )
+
+    tabela.heading("ID", text="ID")
+    tabela.heading("Nome", text="Nome")
+    tabela.heading("Função", text="Função")
+
+    tabela.pack(pady=20)
+
+    cursor.execute("SELECT * FROM npcs")
+
+    for npc in cursor.fetchall():
+        tabela.insert("", tk.END, values=npc)
 
 def criar_npc():
 
-    print("\n=== CRIAR NPC ===")
+    limpar_area()
+    titulo("CRIAR NPC")
 
-    nome = input("Digite o nome do NPC: ")
-    funcao = input("Digite a função do NPC: ")
+    frame = tk.Frame(area, bg=FUNDO)
+    frame.pack(pady=20)
 
-    npc = {
-        "nome": nome,
-        "funcao": funcao
-    }
+    tk.Label(frame, text="Nome", bg=FUNDO, fg=TEXTO).grid(row=0, column=0)
 
-    npcs.append(npc)
+    entry_nome = tk.Entry(frame)
+    entry_nome.grid(row=0, column=1)
 
-    print("NPC criado com sucesso!")
-    pausar()
+    tk.Label(frame, text="Função", bg=FUNDO, fg=TEXTO).grid(row=1, column=0)
 
+    entry_funcao = tk.Entry(frame)
+    entry_funcao.grid(row=1, column=1)
 
-def ver_npcs():
+    def salvar():
 
-    print("\n=== NPCs ===")
+        cursor.execute("""
+        INSERT INTO npcs(nome, funcao)
+        VALUES (?, ?)
+        """, (
+            entry_nome.get(),
+            entry_funcao.get()
+        ))
 
-    if not npcs:
-        print("Nenhum NPC criado.")
-        pausar()
-        return
+        conexao.commit()
 
-    for i, npc in enumerate(npcs, start=1):
-        print(f"\n{i} - {npc['nome']}")
-        print(f"Função: {npc['funcao']}")
+        messagebox.showinfo("Sucesso", "NPC criado!")
 
-    pausar()
+        tela_npcs()
 
+    tk.Button(
+        area,
+        text="CRIAR NPC",
+        command=salvar,
+        bg=ROXO,
+        fg="white",
+        width=20,
+        height=2,
+        bd=0
+    ).pack(pady=20)
 
-def alterar_npc():
-
-    print("\n=== ALTERAR NPC ===")
-
-    if not npcs:
-        print("Nenhum NPC criado.")
-        pausar()
-        return
-
-    for i, npc in enumerate(npcs, start=1):
-        print(f"{i} - {npc['nome']}")
-
-    escolha = int(input("\nEscolha o NPC: "))
-
-    npc = npcs[escolha - 1]
-
-    npc["nome"] = input("Novo nome: ")
-    npc["funcao"] = input("Nova função: ")
-
-    print("NPC atualizado com sucesso!")
-    pausar()
-
-
-# =========================
+# ==========================================
 # CAMPANHAS
-# =========================
+# ==========================================
+
+def tela_campanhas():
+
+    limpar_area()
+    titulo("CAMPANHAS")
+
+    tabela = ttk.Treeview(
+        area,
+        columns=("ID", "Nome", "História"),
+        show="headings",
+        height=20
+    )
+
+    tabela.heading("ID", text="ID")
+    tabela.heading("Nome", text="Nome")
+    tabela.heading("História", text="História")
+
+    tabela.pack(pady=20)
+
+    cursor.execute("SELECT * FROM campanhas")
+
+    for campanha in cursor.fetchall():
+        tabela.insert("", tk.END, values=campanha)
 
 def criar_campanha():
 
-    print("\n=== CRIAR CAMPANHA ===")
+    limpar_area()
+    titulo("CRIAR CAMPANHA")
 
-    nome = input("Digite o nome da campanha: ")
-    historia = input("Digite a história da campanha: ")
+    frame = tk.Frame(area, bg=FUNDO)
+    frame.pack(pady=20)
 
-    campanha = {
-        "nome": nome,
-        "historia": historia,
-        "sessoes": []
-    }
+    tk.Label(frame, text="Nome", bg=FUNDO, fg=TEXTO).grid(row=0, column=0)
 
-    campanhas.append(campanha)
+    entry_nome = tk.Entry(frame)
+    entry_nome.grid(row=0, column=1)
 
-    print("Campanha criada com sucesso!")
-    pausar()
+    tk.Label(frame, text="História", bg=FUNDO, fg=TEXTO).grid(row=1, column=0)
 
+    entry_historia = tk.Entry(frame, width=40)
+    entry_historia.grid(row=1, column=1)
 
-def ver_campanhas():
+    def salvar():
 
-    print("\n=== CAMPANHAS ===")
+        cursor.execute("""
+        INSERT INTO campanhas(nome, historia)
+        VALUES (?, ?)
+        """, (
+            entry_nome.get(),
+            entry_historia.get()
+        ))
 
-    if not campanhas:
-        print("Nenhuma campanha criada.")
-        pausar()
-        return
+        conexao.commit()
 
-    for i, campanha in enumerate(campanhas, start=1):
+        messagebox.showinfo("Sucesso", "Campanha criada!")
 
-        print(f"\n{i} - {campanha['nome']}")
-        print(f"História: {campanha['historia']}")
+        tela_campanhas()
 
-        print("Sessões:")
+    tk.Button(
+        area,
+        text="CRIAR CAMPANHA",
+        command=salvar,
+        bg=ROXO,
+        fg="white",
+        width=25,
+        height=2,
+        bd=0
+    ).pack(pady=20)
 
-        if campanha["sessoes"]:
-            for s in campanha["sessoes"]:
-                print(f"- {s}")
-        else:
-            print("Nenhuma sessão cadastrada.")
+# ==========================================
+# SESSÕES
+# ==========================================
 
-    pausar()
+def criar_sessao():
 
+    limpar_area()
+    titulo("CRIAR SESSÃO")
 
-def adicionar_sessao():
+    frame = tk.Frame(area, bg=FUNDO)
+    frame.pack(pady=20)
 
-    print("\n=== ADICIONAR SESSÃO ===")
+    tk.Label(frame, text="ID da Campanha", bg=FUNDO, fg=TEXTO).grid(row=0, column=0)
 
-    if not campanhas:
-        print("Nenhuma campanha criada.")
-        pausar()
-        return
+    entry_id = tk.Entry(frame)
+    entry_id.grid(row=0, column=1)
 
-    for i, campanha in enumerate(campanhas, start=1):
-        print(f"{i} - {campanha['nome']}")
+    tk.Label(frame, text="Descrição", bg=FUNDO, fg=TEXTO).grid(row=1, column=0)
 
-    escolha = int(input("\nEscolha a campanha: "))
+    entry_desc = tk.Entry(frame, width=40)
+    entry_desc.grid(row=1, column=1)
 
-    sessao = input("Descrição da sessão: ")
+    def salvar():
 
-    campanhas[escolha - 1]["sessoes"].append(sessao)
+        cursor.execute("""
+        INSERT INTO sessoes(campanha_id, descricao)
+        VALUES (?, ?)
+        """, (
+            entry_id.get(),
+            entry_desc.get()
+        ))
 
-    print("Sessão adicionada com sucesso!")
-    pausar()
+        conexao.commit()
 
+        messagebox.showinfo("Sucesso", "Sessão criada!")
 
-def alterar_sessao():
+    tk.Button(
+        area,
+        text="CRIAR SESSÃO",
+        command=salvar,
+        bg=ROXO,
+        fg="white",
+        width=25,
+        height=2,
+        bd=0
+    ).pack(pady=20)
 
-    print("\n=== ALTERAR SESSÃO ===")
+# ==========================================
+# ESTILO BOTÕES
+# ==========================================
 
-    if not campanhas:
-        print("Nenhuma campanha criada.")
-        pausar()
-        return
+estilo = {
+    "font": ("Arial", 11, "bold"),
+    "width": 25,
+    "height": 2,
+    "bg": ROXO,
+    "fg": "white",
+    "bd": 0,
+    "cursor": "hand2"
+}
 
-    for i, campanha in enumerate(campanhas, start=1):
-        print(f"{i} - {campanha['nome']}")
-
-    escolha_campanha = int(input("\nEscolha a campanha: "))
-
-    campanha = campanhas[escolha_campanha - 1]
-
-    if not campanha["sessoes"]:
-        print("Nenhuma sessão cadastrada.")
-        pausar()
-        return
-
-    print("\nSessões:")
-
-    for i, sessao in enumerate(campanha["sessoes"], start=1):
-        print(f"{i} - {sessao}")
-
-    escolha_sessao = int(input("\nEscolha a sessão: "))
-
-    nova_sessao = input("Nova descrição da sessão: ")
-
-    campanha["sessoes"][escolha_sessao - 1] = nova_sessao
-
-    print("Sessão alterada com sucesso!")
-    pausar()
-
-
-# =========================
+# ==========================================
 # MENU JOGADOR
-# =========================
+# ==========================================
 
-def menu_jogador():
+tk.Label(
+    menu_lateral,
+    text="JOGADOR",
+    bg=MENU,
+    fg=ROXO_CLARO,
+    font=("Arial", 14, "bold")
+).pack(pady=15)
 
-    while True:
+tk.Button(
+    menu_lateral,
+    text="Criar Personagem",
+    command=criar_personagem,
+    **estilo
+).pack(pady=5)
 
-        print("\n=== MENU DO JOGADOR ===")
+tk.Button(
+    menu_lateral,
+    text="Ver Personagens",
+    command=tela_personagens,
+    **estilo
+).pack(pady=5)
 
-        print("1 - Criar personagem")
-        print("2 - Ver personagens")
-        print("3 - Alterar personagem")
-        print("4 - Adicionar item")
-        print("0 - Voltar")
+tk.Button(
+    menu_lateral,
+    text="Alterar Personagem",
+    command=alterar_personagem,
+    **estilo
+).pack(pady=5)
 
-        escolha = input("\nEscolha: ")
+tk.Button(
+    menu_lateral,
+    text="Excluir Personagem",
+    command=excluir_personagem,
+    bg=VERMELHO,
+    fg="white",
+    width=25,
+    height=2,
+    bd=0
+).pack(pady=5)
 
-        if escolha == "1":
-            criar_personagem()
-
-        elif escolha == "2":
-            ver_personagens()
-
-        elif escolha == "3":
-            alterar_personagem()
-
-        elif escolha == "4":
-            adicionar_item()
-
-        elif escolha == "0":
-            break
-
-        else:
-            print("Opção inválida.")
-            pausar()
-
-
-# =========================
+# ==========================================
 # MENU MESTRE
-# =========================
+# ==========================================
 
-def menu_mestre():
+tk.Label(
+    menu_lateral,
+    text="MESTRE",
+    bg=MENU,
+    fg=ROXO_CLARO,
+    font=("Arial", 14, "bold")
+).pack(pady=20)
 
-    while True:
+tk.Button(
+    menu_lateral,
+    text="Criar NPC",
+    command=criar_npc,
+    **estilo
+).pack(pady=5)
 
-        print("\n=== MENU DO MESTRE ===")
+tk.Button(
+    menu_lateral,
+    text="Ver NPCS",
+    command=tela_npcs,
+    **estilo
+).pack(pady=5)
 
-        print("1 - Criar NPC")
-        print("2 - Ver NPCs")
-        print("3 - Alterar NPC")
-        print("4 - Criar campanha")
-        print("5 - Ver campanhas")
-        print("6 - Adicionar sessão")
-        print("7 - Alterar sessão")
-        print("0 - Voltar")
+tk.Button(
+    menu_lateral,
+    text="Criar Campanha",
+    command=criar_campanha,
+    **estilo
+).pack(pady=5)
 
-        escolha = input("\nEscolha: ")
+tk.Button(
+    menu_lateral,
+    text="Ver Campanhas",
+    command=tela_campanhas,
+    **estilo
+).pack(pady=5)
 
-        if escolha == "1":
-            criar_npc()
+tk.Button(
+    menu_lateral,
+    text="Criar Sessão",
+    command=criar_sessao,
+    **estilo
+).pack(pady=5)
 
-        elif escolha == "2":
-            ver_npcs()
+# ==========================================
+# INICIAR
+# ==========================================
 
-        elif escolha == "3":
-            alterar_npc()
+tela_personagens()
 
-        elif escolha == "4":
-            criar_campanha()
+janela.mainloop()
 
-        elif escolha == "5":
-            ver_campanhas()
-
-        elif escolha == "6":
-            adicionar_sessao()
-
-        elif escolha == "7":
-            alterar_sessao()
-
-        elif escolha == "0":
-            break
-
-        else:
-            print("Opção inválida.")
-            pausar()
-
-
-# =========================
-# MENU PRINCIPAL
-# =========================
-
-def menu_principal():
-
-    while True:
-
-        print("\n=== RPG SYSTEM ===")
-
-        print("1 - Jogador")
-        print("2 - Mestre")
-        print("0 - Sair")
-
-        escolha = input("\nEscolha: ")
-
-        if escolha == "1":
-            menu_jogador()
-
-        elif escolha == "2":
-            menu_mestre()
-
-        elif escolha == "0":
-            print("\nSaindo do sistema...")
-            break
-
-        else:
-            print("Opção inválida.")
-            pausar()
-
-
-# =========================
-# INICIAR SISTEMA
-# =========================
-
-menu_principal()
+conexao.close()
