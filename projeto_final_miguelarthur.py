@@ -1,3 +1,6 @@
+# RPG SYSTEM COMPLETO ATUALIZADO
+
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 import sqlite3
@@ -53,7 +56,7 @@ conexao.commit()
 
 janela = tk.Tk()
 janela.title("RPG SYSTEM")
-janela.geometry("1200x700")
+janela.geometry("1400x800")
 janela.config(bg="#0f172a")
 
 # ==========================================
@@ -90,6 +93,7 @@ def limpar_area():
     for widget in area.winfo_children():
         widget.destroy()
 
+
 def titulo(texto):
     tk.Label(
         area,
@@ -119,12 +123,17 @@ def tela_personagens():
     tabela.heading("Nome", text="Nome")
     tabela.heading("Classe", text="Classe")
 
-    tabela.pack(pady=20)
+    tabela.column("ID", width=50)
+    tabela.column("Nome", width=250)
+    tabela.column("Classe", width=200)
+
+    tabela.pack(pady=20, fill="x")
 
     cursor.execute("SELECT * FROM personagens")
 
     for personagem in cursor.fetchall():
         tabela.insert("", tk.END, values=personagem)
+
 
 def criar_personagem():
 
@@ -143,13 +152,7 @@ def criar_personagem():
 
     combo = ttk.Combobox(
         frame,
-        values=[
-            "Mago",
-            "Guerreiro",
-            "Ladino",
-            "Arqueiro",
-            "Clérigo"
-        ],
+        values=["Mago", "Guerreiro", "Ladino", "Arqueiro", "Clérigo"],
         width=27
     )
 
@@ -165,10 +168,10 @@ def criar_personagem():
             messagebox.showwarning("Erro", "Digite um nome!")
             return
 
-        cursor.execute("""
-        INSERT INTO personagens(nome, classe)
-        VALUES (?, ?)
-        """, (nome, classe))
+        cursor.execute(
+            "INSERT INTO personagens(nome, classe) VALUES (?, ?)",
+            (nome, classe)
+        )
 
         conexao.commit()
 
@@ -187,6 +190,10 @@ def criar_personagem():
         height=2,
         bd=0
     ).pack(pady=20)
+
+# ==========================================
+# ALTERAR PERSONAGEM
+# ==========================================
 
 def alterar_personagem():
 
@@ -218,15 +225,14 @@ def alterar_personagem():
 
     def alterar():
 
-        cursor.execute("""
-        UPDATE personagens
-        SET nome = ?, classe = ?
-        WHERE id = ?
-        """, (
-            entry_nome.get(),
-            combo.get(),
-            entry_id.get()
-        ))
+        cursor.execute(
+            "UPDATE personagens SET nome = ?, classe = ? WHERE id = ?",
+            (
+                entry_nome.get(),
+                combo.get(),
+                entry_id.get()
+            )
+        )
 
         conexao.commit()
 
@@ -245,6 +251,10 @@ def alterar_personagem():
         bd=0
     ).pack(pady=20)
 
+# ==========================================
+# EXCLUIR PERSONAGEM
+# ==========================================
+
 def excluir_personagem():
 
     limpar_area()
@@ -260,9 +270,15 @@ def excluir_personagem():
 
     def excluir():
 
+        personagem_id = entry.get()
+
+        if personagem_id == "":
+            messagebox.showwarning("Erro", "Digite um ID!")
+            return
+
         cursor.execute(
             "DELETE FROM personagens WHERE id = ?",
-            (entry.get(),)
+            (personagem_id,)
         )
 
         conexao.commit()
@@ -302,12 +318,17 @@ def tela_npcs():
     tabela.heading("Nome", text="Nome")
     tabela.heading("Função", text="Função")
 
-    tabela.pack(pady=20)
+    tabela.column("ID", width=50)
+    tabela.column("Nome", width=250)
+    tabela.column("Função", width=300)
+
+    tabela.pack(pady=20, fill="x")
 
     cursor.execute("SELECT * FROM npcs")
 
     for npc in cursor.fetchall():
         tabela.insert("", tk.END, values=npc)
+
 
 def criar_npc():
 
@@ -317,25 +338,22 @@ def criar_npc():
     frame = tk.Frame(area, bg=FUNDO)
     frame.pack(pady=20)
 
-    tk.Label(frame, text="Nome", bg=FUNDO, fg=TEXTO).grid(row=0, column=0)
+    tk.Label(frame, text="Nome", bg=FUNDO, fg=TEXTO).grid(row=0, column=0, pady=10)
 
-    entry_nome = tk.Entry(frame)
+    entry_nome = tk.Entry(frame, width=30)
     entry_nome.grid(row=0, column=1)
 
-    tk.Label(frame, text="Função", bg=FUNDO, fg=TEXTO).grid(row=1, column=0)
+    tk.Label(frame, text="Função", bg=FUNDO, fg=TEXTO).grid(row=1, column=0, pady=10)
 
-    entry_funcao = tk.Entry(frame)
+    entry_funcao = tk.Entry(frame, width=30)
     entry_funcao.grid(row=1, column=1)
 
     def salvar():
 
-        cursor.execute("""
-        INSERT INTO npcs(nome, funcao)
-        VALUES (?, ?)
-        """, (
-            entry_nome.get(),
-            entry_funcao.get()
-        ))
+        cursor.execute(
+            "INSERT INTO npcs(nome, funcao) VALUES (?, ?)",
+            (entry_nome.get(), entry_funcao.get())
+        )
 
         conexao.commit()
 
@@ -363,23 +381,151 @@ def tela_campanhas():
     limpar_area()
     titulo("CAMPANHAS")
 
-    tabela = ttk.Treeview(
-        area,
-        columns=("ID", "Nome", "História"),
-        show="headings",
-        height=20
+    frame_principal = tk.Frame(area, bg=FUNDO)
+    frame_principal.pack(fill="both", expand=True, padx=20, pady=20)
+
+    # LISTA DE CAMPANHAS
+
+    frame_lista = tk.Frame(frame_principal, bg=MENU)
+    frame_lista.pack(side="left", fill="y", padx=10)
+
+    tk.Label(
+        frame_lista,
+        text="Campanhas",
+        bg=MENU,
+        fg=ROXO_CLARO,
+        font=("Arial", 16, "bold")
+    ).pack(pady=10)
+
+    lista_campanhas = tk.Listbox(
+        frame_lista,
+        width=30,
+        height=25,
+        bg="#1e293b",
+        fg="white",
+        font=("Arial", 11),
+        selectbackground=ROXO,
+        bd=0
     )
 
-    tabela.heading("ID", text="ID")
-    tabela.heading("Nome", text="Nome")
-    tabela.heading("História", text="História")
+    lista_campanhas.pack(padx=10, pady=10)
 
-    tabela.pack(pady=20)
+    # DETALHES
+
+    frame_detalhes = tk.Frame(frame_principal, bg=FUNDO)
+    frame_detalhes.pack(side="right", fill="both", expand=True)
+
+    titulo_nome = tk.Label(
+        frame_detalhes,
+        text="Selecione uma campanha",
+        bg=FUNDO,
+        fg=ROXO_CLARO,
+        font=("Arial", 20, "bold")
+    )
+
+    titulo_nome.pack(pady=10)
+
+    texto_historia = tk.Text(
+        frame_detalhes,
+        wrap="word",
+        font=("Arial", 11),
+        bg="#1e293b",
+        fg="white",
+        height=15
+    )
+
+    texto_historia.pack(fill="both", expand=True, padx=10, pady=10)
+
+    scrollbar = tk.Scrollbar(texto_historia)
+    scrollbar.pack(side="right", fill="y")
+
+    texto_historia.config(yscrollcommand=scrollbar.set)
+    scrollbar.config(command=texto_historia.yview)
+
+    # SESSÕES
+
+    tk.Label(
+        frame_detalhes,
+        text="Sessões da Campanha",
+        bg=FUNDO,
+        fg=ROXO_CLARO,
+        font=("Arial", 16, "bold")
+    ).pack(pady=10)
+
+    lista_sessoes = tk.Listbox(
+        frame_detalhes,
+        height=8,
+        bg="#111827",
+        fg="white",
+        font=("Arial", 10),
+        selectbackground=ROXO,
+        bd=0
+    )
+
+    lista_sessoes.pack(fill="x", padx=10, pady=10)
+
+    # CARREGAR CAMPANHAS
 
     cursor.execute("SELECT * FROM campanhas")
+    campanhas = cursor.fetchall()
 
-    for campanha in cursor.fetchall():
-        tabela.insert("", tk.END, values=campanha)
+    dados_campanhas = {}
+
+    for campanha in campanhas:
+
+        campanha_id = campanha[0]
+        nome = campanha[1]
+        historia = campanha[2]
+
+        dados_campanhas[nome] = {
+            "id": campanha_id,
+            "historia": historia
+        }
+
+        lista_campanhas.insert(tk.END, nome)
+
+    # MOSTRAR CAMPANHA
+
+    def mostrar_campanha(event):
+
+        selecao = lista_campanhas.curselection()
+
+        if not selecao:
+            return
+
+        nome_campanha = lista_campanhas.get(selecao)
+
+        campanha = dados_campanhas[nome_campanha]
+
+        titulo_nome.config(text=nome_campanha)
+
+        texto_historia.delete("1.0", tk.END)
+        texto_historia.insert(tk.END, campanha["historia"])
+
+        lista_sessoes.delete(0, tk.END)
+
+        cursor.execute(
+            "SELECT descricao FROM sessoes WHERE campanha_id = ?",
+            (campanha["id"],)
+        )
+
+        sessoes = cursor.fetchall()
+
+        if len(sessoes) == 0:
+            lista_sessoes.insert(tk.END, "Nenhuma sessão encontrada")
+
+        else:
+            for numero, sessao in enumerate(sessoes, start=1):
+
+                texto = sessao[0].split("\n")[0][:60]
+
+                lista_sessoes.insert(
+                    tk.END,
+                    f"Sessão {numero} - {texto}"
+                )
+
+    lista_campanhas.bind("<<ListboxSelect>>", mostrar_campanha)
+
 
 def criar_campanha():
 
@@ -389,25 +535,36 @@ def criar_campanha():
     frame = tk.Frame(area, bg=FUNDO)
     frame.pack(pady=20)
 
-    tk.Label(frame, text="Nome", bg=FUNDO, fg=TEXTO).grid(row=0, column=0)
+    tk.Label(frame, text="Nome", bg=FUNDO, fg=TEXTO).grid(row=0, column=0, pady=10)
 
-    entry_nome = tk.Entry(frame)
+    entry_nome = tk.Entry(frame, width=40)
     entry_nome.grid(row=0, column=1)
 
-    tk.Label(frame, text="História", bg=FUNDO, fg=TEXTO).grid(row=1, column=0)
+    tk.Label(frame, text="História", bg=FUNDO, fg=TEXTO).grid(row=1, column=0, pady=10)
 
-    entry_historia = tk.Entry(frame, width=40)
-    entry_historia.grid(row=1, column=1)
+    entry_historia = tk.Text(
+        frame,
+        width=70,
+        height=15,
+        font=("Arial", 11),
+        wrap="word"
+    )
+
+    entry_historia.grid(row=1, column=1, pady=10)
+
+    scrollbar = tk.Scrollbar(frame, command=entry_historia.yview)
+    scrollbar.grid(row=1, column=2, sticky="ns")
+
+    entry_historia.config(yscrollcommand=scrollbar.set)
 
     def salvar():
 
-        cursor.execute("""
-        INSERT INTO campanhas(nome, historia)
-        VALUES (?, ?)
-        """, (
-            entry_nome.get(),
-            entry_historia.get()
-        ))
+        historia = entry_historia.get("1.0", tk.END)
+
+        cursor.execute(
+            "INSERT INTO campanhas(nome, historia) VALUES (?, ?)",
+            (entry_nome.get(), historia)
+        )
 
         conexao.commit()
 
@@ -427,6 +584,119 @@ def criar_campanha():
     ).pack(pady=20)
 
 # ==========================================
+# EXCLUIR CAMPANHA
+# ==========================================
+
+def excluir_campanha():
+
+    limpar_area()
+    titulo("EXCLUIR CAMPANHA")
+
+    frame = tk.Frame(area, bg=FUNDO)
+    frame.pack(pady=30)
+
+    tk.Label(
+        frame,
+        text="ID da Campanha",
+        bg=FUNDO,
+        fg=TEXTO,
+        font=("Arial", 12)
+    ).pack(pady=10)
+
+    entry_id = tk.Entry(frame, width=20)
+    entry_id.pack(pady=10)
+
+    def excluir():
+
+        campanha_id = entry_id.get()
+
+        if campanha_id == "":
+            messagebox.showwarning("Erro", "Digite um ID!")
+            return
+
+        # EXCLUIR SESSÕES DA CAMPANHA
+        cursor.execute(
+            "DELETE FROM sessoes WHERE campanha_id = ?",
+            (campanha_id,)
+        )
+
+        # EXCLUIR CAMPANHA
+        cursor.execute(
+            "DELETE FROM campanhas WHERE id = ?",
+            (campanha_id,)
+        )
+
+        conexao.commit()
+
+        messagebox.showinfo("Sucesso", "Campanha excluída!")
+
+        tela_campanhas()
+
+    tk.Button(
+        frame,
+        text="EXCLUIR CAMPANHA",
+        command=excluir,
+        bg=VERMELHO,
+        fg="white",
+        width=25,
+        height=2,
+        bd=0
+    ).pack(pady=20)
+
+# ==========================================
+# EXCLUIR NPC
+# ==========================================
+
+def excluir_npc():
+
+    limpar_area()
+    titulo("EXCLUIR NPC")
+
+    frame = tk.Frame(area, bg=FUNDO)
+    frame.pack(pady=30)
+
+    tk.Label(
+        frame,
+        text="ID do NPC",
+        bg=FUNDO,
+        fg=TEXTO,
+        font=("Arial", 12)
+    ).pack(pady=10)
+
+    entry_id = tk.Entry(frame, width=20)
+    entry_id.pack(pady=10)
+
+    def excluir():
+
+        npc_id = entry_id.get()
+
+        if npc_id == "":
+            messagebox.showwarning("Erro", "Digite um ID!")
+            return
+
+        cursor.execute(
+            "DELETE FROM npcs WHERE id = ?",
+            (npc_id,)
+        )
+
+        conexao.commit()
+
+        messagebox.showinfo("Sucesso", "NPC excluído!")
+
+        tela_npcs()
+
+    tk.Button(
+        frame,
+        text="EXCLUIR NPC",
+        command=excluir,
+        bg=VERMELHO,
+        fg="white",
+        width=25,
+        height=2,
+        bd=0
+    ).pack(pady=20)
+
+# ==========================================
 # SESSÕES
 # ==========================================
 
@@ -438,25 +708,36 @@ def criar_sessao():
     frame = tk.Frame(area, bg=FUNDO)
     frame.pack(pady=20)
 
-    tk.Label(frame, text="ID da Campanha", bg=FUNDO, fg=TEXTO).grid(row=0, column=0)
+    tk.Label(frame, text="ID da Campanha", bg=FUNDO, fg=TEXTO).grid(row=0, column=0, pady=10)
 
-    entry_id = tk.Entry(frame)
+    entry_id = tk.Entry(frame, width=20)
     entry_id.grid(row=0, column=1)
 
-    tk.Label(frame, text="Descrição", bg=FUNDO, fg=TEXTO).grid(row=1, column=0)
+    tk.Label(frame, text="Descrição da Sessão", bg=FUNDO, fg=TEXTO).grid(row=1, column=0, pady=10)
 
-    entry_desc = tk.Entry(frame, width=40)
-    entry_desc.grid(row=1, column=1)
+    entry_desc = tk.Text(
+        frame,
+        width=70,
+        height=18,
+        font=("Arial", 11),
+        wrap="word"
+    )
+
+    entry_desc.grid(row=1, column=1, pady=10)
+
+    scrollbar = tk.Scrollbar(frame, command=entry_desc.yview)
+    scrollbar.grid(row=1, column=2, sticky="ns")
+
+    entry_desc.config(yscrollcommand=scrollbar.set)
 
     def salvar():
 
-        cursor.execute("""
-        INSERT INTO sessoes(campanha_id, descricao)
-        VALUES (?, ?)
-        """, (
-            entry_id.get(),
-            entry_desc.get()
-        ))
+        descricao = entry_desc.get("1.0", tk.END)
+
+        cursor.execute(
+            "INSERT INTO sessoes(campanha_id, descricao) VALUES (?, ?)",
+            (entry_id.get(), descricao)
+        )
 
         conexao.commit()
 
@@ -559,6 +840,17 @@ tk.Button(
 
 tk.Button(
     menu_lateral,
+    text="Excluir NPC",
+    command=excluir_npc,
+    bg=VERMELHO,
+    fg="white",
+    width=25,
+    height=2,
+    bd=0
+).pack(pady=5)
+
+tk.Button(
+    menu_lateral,
     text="Criar Campanha",
     command=criar_campanha,
     **estilo
@@ -569,6 +861,17 @@ tk.Button(
     text="Ver Campanhas",
     command=tela_campanhas,
     **estilo
+).pack(pady=5)
+
+tk.Button(
+    menu_lateral,
+    text="Excluir Campanha",
+    command=excluir_campanha,
+    bg=VERMELHO,
+    fg="white",
+    width=25,
+    height=2,
+    bd=0
 ).pack(pady=5)
 
 tk.Button(
@@ -587,3 +890,4 @@ tela_personagens()
 janela.mainloop()
 
 conexao.close()
+
